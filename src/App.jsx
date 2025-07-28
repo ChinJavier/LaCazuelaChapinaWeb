@@ -1,35 +1,53 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route } from 'react-router';
+import { ThemeProvider } from '@mui/material/styles';
+import { CssBaseline } from '@mui/material';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import theme from './theme/theme';
+import Layout from './components/common/Layout';
+
+// Importar páginas
+import Dashboard from './pages/Dashboard/Dashboard';
+import Productos from './pages/Productos/Productos';
+import Ventas from './pages/Ventas/Ventas';
+import Combos from './pages/Combos/Combos';
+import Inventario from './pages/Inventario/Inventario';
+import IA from './pages/IA/IA';
+import Sucursales from './pages/Sucursales/Sucursales';
+// import Configuracion from './pages/Configuracion/Configuracion';
+
+// Crear cliente de React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutos
+    },
+  },
+});
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="productos" element={<Productos />} />
+              <Route path="ventas" element={<Ventas />} />
+              <Route path="combos" element={<Combos />} />
+              <Route path="inventario" element={<Inventario />} />
+              <Route path="ia" element={<IA />} />
+              <Route path="sucursales" element={<Sucursales />} />
+              {/* <Route path="configuracion" element={<Configuracion />} /> */}
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
 }
 
-export default App
+export default App;
