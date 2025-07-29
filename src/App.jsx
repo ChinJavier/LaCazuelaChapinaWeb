@@ -7,7 +7,7 @@ import Layout from './components/common/Layout';
 
 // Importar páginas
 import Dashboard from './pages/Dashboard/Dashboard';
-import Productos from './pages/Productos/Productos';
+import Productos from './pages/Productos/Productos'; // Nueva versión
 import Ventas from './pages/Ventas/Ventas';
 import Combos from './pages/Combos/Combos';
 import Inventario from './pages/Inventario/Inventario';

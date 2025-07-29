@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  tamalesService, 
-  bebidasService, 
+  productosService,
   combosService, 
   ventasService, 
   inventarioService,
@@ -11,49 +10,87 @@ import {
 } from '../services/api';
 import { handleApiError } from '../services/api';
 
-// Hook para tamales
-export const useTamales = () => {
+// Hook para todos los productos
+export const useProductos = () => {
   return useQuery({
-    queryKey: ['tamales'],
-    queryFn: () => tamalesService.getAll().then(res => res.data),
+    queryKey: ['productos'],
+    queryFn: () => productosService.getAll().then(res => res.data),
     onError: (error) => {
-      console.error('Error al cargar tamales:', handleApiError(error));
+      console.error('Error al cargar productos:', handleApiError(error));
     },
   });
 };
 
+// Hook para categorías
+export const useCategorias = () => {
+  return useQuery({
+    queryKey: ['categorias'],
+    queryFn: () => productosService.getCategorias().then(res => res.data),
+    onError: (error) => {
+      console.error('Error al cargar categorías:', handleApiError(error));
+    },
+  });
+};
+
+// Hook para productos por categoría
+export const useProductosPorCategoria = (categoriaId) => {
+  return useQuery({
+    queryKey: ['productos', 'categoria', categoriaId],
+    queryFn: () => productosService.getByCategoria(categoriaId).then(res => res.data),
+    enabled: !!categoriaId,
+    onError: (error) => {
+      console.error('Error al cargar productos por categoría:', handleApiError(error));
+    },
+  });
+};
+
+// Hook para tamales (productos de categoría tamales)
+export const useTamales = () => {
+  return useProductosPorCategoria(1); // Asumiendo que tamales es categoría 1
+};
+
+// Hook para bebidas (productos de categoría bebidas)  
+export const useBebidas = () => {
+  return useProductosPorCategoria(2); // Asumiendo que bebidas es categoría 2
+};
+
+// Hook para producto específico por ID
+export const useProducto = (id) => {
+  return useQuery({
+    queryKey: ['productos', id],
+    queryFn: () => productosService.getById(id).then(res => res.data),
+    enabled: !!id,
+    onError: (error) => {
+      console.error('Error al cargar producto:', handleApiError(error));
+    },
+  });
+};
+
+// Hook para calcular precio de producto
+export const useCalcularPrecio = () => {
+  return useMutation({
+    mutationFn: (data) => productosService.calcularPrecio(data),
+    onError: (error) => {
+      console.error('Error al calcular precio:', handleApiError(error));
+    },
+  });
+};
+
+// Hooks de backward compatibility (si necesitas mantener la misma interfaz)
 export const useTamalMutation = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: ({ action, id, data }) => {
-      switch (action) {
-        case 'create':
-          return tamalesService.create(data);
-        case 'update':
-          return tamalesService.update(id, data);
-        case 'delete':
-          return tamalesService.delete(id);
-        default:
-          throw new Error('Acción no válida');
-      }
+      // Como no hay endpoints de CRUD individual, esto sería para administración
+      // Podrías implementar endpoints de administración o manejar esto diferente
+      throw new Error('Funcionalidad de administración no implementada en esta API');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['tamales']);
+      queryClient.invalidateQueries(['productos']);
     },
     onError: (error) => {
       console.error('Error en operación de tamal:', handleApiError(error));
-    },
-  });
-};
-
-// Hook para bebidas
-export const useBebidas = () => {
-  return useQuery({
-    queryKey: ['bebidas'],
-    queryFn: () => bebidasService.getAll().then(res => res.data),
-    onError: (error) => {
-      console.error('Error al cargar bebidas:', handleApiError(error));
     },
   });
 };
@@ -63,19 +100,14 @@ export const useBebidaMutation = () => {
   
   return useMutation({
     mutationFn: ({ action, id, data }) => {
-      switch (action) {
-        case 'create':
-          return bebidasService.create(data);
-        case 'update':
-          return bebidasService.update(id, data);
-        case 'delete':
-          return bebidasService.delete(id);
-        default:
-          throw new Error('Acción no válida');
-      }
+      // Como no hay endpoints de CRUD individual, esto sería para administración
+      throw new Error('Funcionalidad de administración no implementada en esta API');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['bebidas']);
+      queryClient.invalidateQueries(['productos']);
+    },
+    onError: (error) => {
+      console.error('Error en operación de bebida:', handleApiError(error));
     },
   });
 };

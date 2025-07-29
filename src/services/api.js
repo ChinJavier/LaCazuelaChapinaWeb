@@ -42,30 +42,48 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Servicios de API organizados por módulos
+// Servicios de API basados en los endpoints reales del swagger
+export const productosService = {
+  // Obtener todos los productos
+  getAll: () => apiClient.get('/productos'),
+  
+  // Obtener producto por ID
+  getById: (id) => apiClient.get(`/productos/${id}`),
+  
+  // Obtener productos por categoría
+  getByCategoria: (categoriaId) => apiClient.get(`/productos/categoria/${categoriaId}`),
+  
+  // Calcular precio de un producto con configuración específica
+  calcularPrecio: (data) => {
+    console.log('Datos enviados al endpoint calcular-precio:', data);
+    return apiClient.post('/productos/calcular-precio', data);
+  },
+  
+  // Obtener categorías disponibles
+  getCategorias: () => apiClient.get('/productos/categorias'),
+};
+
+// Servicios específicos para backward compatibility si necesitas separar por tipo
 export const tamalesService = {
-  // Obtener todos los tamales
-  getAll: () => apiClient.get('/tamales'),
+  // Obtener tamales (productos de categoría tamales)
+  getAll: () => productosService.getByCategoria(1), // Asumiendo que tamales es categoría 1
   
-  // Crear nuevo tamal
-  create: (data) => apiClient.post('/tamales', data),
+  // Obtener tamal por ID
+  getById: (id) => productosService.getById(id),
   
-  // Actualizar tamal
-  update: (id, data) => apiClient.put(`/tamales/${id}`, data),
-  
-  // Eliminar tamal
-  delete: (id) => apiClient.delete(`/tamales/${id}`),
-  
-  // Obtener por ID
-  getById: (id) => apiClient.get(`/tamales/${id}`),
+  // Calcular precio de tamal
+  calcularPrecio: (data) => productosService.calcularPrecio(data),
 };
 
 export const bebidasService = {
-  getAll: () => apiClient.get('/bebidas'),
-  create: (data) => apiClient.post('/bebidas', data),
-  update: (id, data) => apiClient.put(`/bebidas/${id}`, data),
-  delete: (id) => apiClient.delete(`/bebidas/${id}`),
-  getById: (id) => apiClient.get(`/bebidas/${id}`),
+  // Obtener bebidas (productos de categoría bebidas)
+  getAll: () => productosService.getByCategoria(2), // Asumiendo que bebidas es categoría 2
+  
+  // Obtener bebida por ID
+  getById: (id) => productosService.getById(id),
+  
+  // Calcular precio de bebida
+  calcularPrecio: (data) => productosService.calcularPrecio(data),
 };
 
 export const combosService = {

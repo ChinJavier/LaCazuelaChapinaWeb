@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Tabs,
@@ -9,21 +9,33 @@ import {
   Button,
   Grid,
   Chip,
-  IconButton,
   Dialog,
   Alert,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   Restaurant as RestaurantIcon,
   LocalDrink as DrinkIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Refresh as RefreshIcon,
+  Visibility as ViewIcon,
+  Calculate as CalculateIcon,
 } from '@mui/icons-material';
-import { useTamales, useBebidas, useTamalMutation, useBebidaMutation } from '../../hooks/useData';
-import ProductCard from '../../components/cards/ProductCard';
-import TamalForm from '../../components/forms/TamalForm';
-import BebidaForm from '../../components/forms/BebidaForm';
+import { 
+  useProductos,
+  useCategorias,
+  useCalcularPrecio 
+} from '../../hooks/useData';
+import ProductCardReal from '../../components/cards/ProductCardReal';
+import ProductDetailModal from '../../components/modals/ProductDetailModal';
+import PriceCalculatorModal from '../../components/modals/PriceCalculatorModal';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -41,69 +53,96 @@ function TabPanel({ children, value, index, ...other }) {
 
 export default function Productos() {
   const [tabValue, setTabValue] = useState(0);
-  const [openTamalForm, setOpenTamalForm] = useState(false);
-  const [openBebidaForm, setOpenBebidaForm] = useState(false);
-  const [editingTamal, setEditingTamal] = useState(null);
-  const [editingBebida, setEditingBebida] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showPriceCalculator, setShowPriceCalculator] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('todas');
 
-  const { data: tamales, isLoading: loadingTamales, error: errorTamales } = useTamales();
-  const { data: bebidas, isLoading: loadingBebidas, error: errorBebidas } = useBebidas();
+  // Hooks para datos
+  const { 
+    data: productos, 
+    isLoading: loadingProductos, 
+    error: errorProductos,
+    refetch: refetchProductos 
+  } = useProductos();
+
+  console.log(errorProductos);
   
-  const tamalMutation = useTamalMutation();
-  const bebidaMutation = useBebidaMutation();
+  
+  const { data: categorias } = useCategorias();
+  const calcularPrecioMutation = useCalcularPrecio();
+
+  // Procesar productos y separarlos por categoría
+  const { tamales, bebidas, estadisticas } = useMemo(() => {
+    if (!productos) return { tamales: [], bebidas: [], estadisticas: {} };
+
+    const tamalesData = productos.filter(p => p.categoriaNombre === 'Tamales');
+    const bebidasData = productos.filter(p => p.categoriaNombre === 'Bebidas');
+
+    return {
+      tamales: tamalesData,
+      bebidas: bebidasData,
+      estadisticas: {
+        totalProductos: productos.length,
+        totalTamales: tamalesData.length,
+        totalBebidas: bebidasData.length,
+        totalVariantes: productos.reduce((sum, p) => sum + p.variantes.length, 0),
+      }
+    };
+  }, [productos]);
+
+  // Filtrar productos según búsqueda y filtros
+  const filtrarProductos = (productosArray) => {
+    let filtered = productosArray;
+
+    if (searchTerm) {
+      filtered = filtered.filter(producto => 
+        producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  };
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
 
-  const handleCreateTamal = () => {
-    setEditingTamal(null);
-    setOpenTamalForm(true);
+  const handleViewProduct = (producto) => {
+    setSelectedProduct(producto);
   };
 
-  const handleEditTamal = (tamal) => {
-    setEditingTamal(tamal);
-    setOpenTamalForm(true);
+  const handleCalculatePrice = (producto) => {
+    setShowPriceCalculator(producto);
   };
 
-  const handleDeleteTamal = async (id) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este tamal?')) {
-      try {
-        await tamalMutation.mutateAsync({ action: 'delete', id });
-      } catch (error) {
-        console.error('Error al eliminar tamal:', error);
-      }
-    }
+  const handleCloseModals = () => {
+    setSelectedProduct(null);
+    setShowPriceCalculator(null);
   };
 
-  const handleCreateBebida = () => {
-    setEditingBebida(null);
-    setOpenBebidaForm(true);
+  // Obtener precios de las variantes de un producto
+  const getPreciosVariantes = (producto) => {
+    return producto.variantes.map(variante => ({
+      nombre: variante.nombre,
+      precio: producto.precioBase * variante.multiplicador,
+      descripcion: variante.cantidadUnidades > 1 
+        ? `${variante.cantidadUnidades} unidades`
+        : variante.volumenMl 
+          ? `${variante.volumenMl}ml` 
+          : '1 unidad'
+    }));
   };
 
-  const handleEditBebida = (bebida) => {
-    setEditingBebida(bebida);
-    setOpenBebidaForm(true);
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-GT', {
+      style: 'currency',
+      currency: 'GTQ',
+    }).format(price);
   };
 
-  const handleDeleteBebida = async (id) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta bebida?')) {
-      try {
-        await bebidaMutation.mutateAsync({ action: 'delete', id });
-      } catch (error) {
-        console.error('Error al eliminar bebida:', error);
-      }
-    }
-  };
-
-  const handleCloseForms = () => {
-    setOpenTamalForm(false);
-    setOpenBebidaForm(false);
-    setEditingTamal(null);
-    setEditingBebida(null);
-  };
-
-  if (errorTamales || errorBebidas) {
+  if (errorProductos) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -118,15 +157,134 @@ export default function Productos() {
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
-          Gestión de Productos
+          Catálogo de Productos
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Administra tamales y bebidas de La Cazuela Chapina
+          Tamales y bebidas tradicionales de La Cazuela Chapina
         </Typography>
       </Box>
 
+      {/* Estadísticas rápidas */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" color="primary.main">
+                Total Productos
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                {estadisticas.totalProductos || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" color="secondary.main">
+                Tamales
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                {estadisticas.totalTamales || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" color="info.main">
+                Bebidas
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                {estadisticas.totalBebidas || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" color="warning.main">
+                Variantes
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                {estadisticas.totalVariantes || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Filtros globales */}
+      <Card sx={{ mb: 3, bgcolor: 'grey.50' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <FilterIcon color="primary" />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Filtros
+            </Typography>
+            <Box sx={{ flexGrow: 1 }} />
+            <Tooltip title="Actualizar datos">
+              <IconButton onClick={() => refetchProductos()}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Buscar productos"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
+                }}
+                size="small"
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Categoría</InputLabel>
+                <Select
+                  value={filtroCategoria}
+                  onChange={(e) => setFiltroCategoria(e.target.value)}
+                  label="Categoría"
+                >
+                  <MenuItem value="todas">Todas las categorías</MenuItem>
+                  {categorias?.map((categoria) => (
+                    <MenuItem key={categoria.id} value={categoria.nombre}>
+                      {categoria.nombre}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFiltroCategoria('todas');
+                }}
+                sx={{ height: '40px' }}
+              >
+                Limpiar Filtros
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
       {/* Tabs */}
-      <Card sx={{ mb: 3 }}>
+      <Card>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs 
             value={tabValue} 
@@ -135,12 +293,12 @@ export default function Productos() {
           >
             <Tab 
               icon={<RestaurantIcon />} 
-              label="Tamales" 
+              label={`Tamales (${tamales.length})`}
               iconPosition="start"
             />
             <Tab 
               icon={<DrinkIcon />} 
-              label="Bebidas" 
+              label={`Bebidas (${bebidas.length})`}
               iconPosition="start"
             />
           </Tabs>
@@ -148,25 +306,11 @@ export default function Productos() {
 
         {/* Panel de Tamales */}
         <TabPanel value={tabValue} index={0}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6">
-              Tamales Disponibles ({tamales?.length || 0})
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreateTamal}
-              sx={{ borderRadius: 2 }}
-            >
-              Nuevo Tamal
-            </Button>
-          </Box>
-
-          {loadingTamales ? (
+          {loadingProductos ? (
             <Grid container spacing={3}>
               {[1, 2, 3, 4].map((item) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={item}>
-                  <Card sx={{ height: 300 }}>
+                  <Card sx={{ height: 400 }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                         <Typography color="text.secondary">Cargando...</Typography>
@@ -178,17 +322,17 @@ export default function Productos() {
             </Grid>
           ) : (
             <Grid container spacing={3}>
-              {tamales?.map((tamal) => (
+              {filtrarProductos(tamales).map((tamal) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={tamal.id}>
-                  <ProductCard
+                  <ProductCardReal
                     product={tamal}
-                    type="tamal"
-                    onEdit={() => handleEditTamal(tamal)}
-                    onDelete={() => handleDeleteTamal(tamal.id)}
+                    precios={getPreciosVariantes(tamal)}
+                    onView={() => handleViewProduct(tamal)}
+                    onCalculatePrice={() => handleCalculatePrice(tamal)}
                   />
                 </Grid>
               ))}
-              {(!tamales || tamales.length === 0) && (
+              {filtrarProductos(tamales).length === 0 && (
                 <Grid item xs={12}>
                   <Card>
                     <CardContent sx={{ textAlign: 'center', py: 6 }}>
@@ -196,18 +340,11 @@ export default function Productos() {
                         sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} 
                       />
                       <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                        No hay tamales registrados
+                        No se encontraron tamales
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        Comienza agregando tu primer tamal
+                      <Typography variant="body2" color="text.secondary">
+                        Ajusta los filtros de búsqueda
                       </Typography>
-                      <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={handleCreateTamal}
-                      >
-                        Agregar Tamal
-                      </Button>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -218,25 +355,11 @@ export default function Productos() {
 
         {/* Panel de Bebidas */}
         <TabPanel value={tabValue} index={1}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6">
-              Bebidas Disponibles ({bebidas?.length || 0})
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreateBebida}
-              sx={{ borderRadius: 2 }}
-            >
-              Nueva Bebida
-            </Button>
-          </Box>
-
-          {loadingBebidas ? (
+          {loadingProductos ? (
             <Grid container spacing={3}>
               {[1, 2, 3, 4].map((item) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={item}>
-                  <Card sx={{ height: 300 }}>
+                  <Card sx={{ height: 400 }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                         <Typography color="text.secondary">Cargando...</Typography>
@@ -248,17 +371,17 @@ export default function Productos() {
             </Grid>
           ) : (
             <Grid container spacing={3}>
-              {bebidas?.map((bebida) => (
+              {filtrarProductos(bebidas).map((bebida) => (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={bebida.id}>
-                  <ProductCard
+                  <ProductCardReal
                     product={bebida}
-                    type="bebida"
-                    onEdit={() => handleEditBebida(bebida)}
-                    onDelete={() => handleDeleteBebida(bebida.id)}
+                    precios={getPreciosVariantes(bebida)}
+                    onView={() => handleViewProduct(bebida)}
+                    onCalculatePrice={() => handleCalculatePrice(bebida)}
                   />
                 </Grid>
               ))}
-              {(!bebidas || bebidas.length === 0) && (
+              {filtrarProductos(bebidas).length === 0 && (
                 <Grid item xs={12}>
                   <Card>
                     <CardContent sx={{ textAlign: 'center', py: 6 }}>
@@ -266,18 +389,11 @@ export default function Productos() {
                         sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} 
                       />
                       <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                        No hay bebidas registradas
+                        No se encontraron bebidas
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        Comienza agregando tu primera bebida
+                      <Typography variant="body2" color="text.secondary">
+                        Ajusta los filtros de búsqueda
                       </Typography>
-                      <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={handleCreateBebida}
-                      >
-                        Agregar Bebida
-                      </Button>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -287,41 +403,34 @@ export default function Productos() {
         </TabPanel>
       </Card>
 
-      {/* Formularios */}
+      {/* Modales */}
       <Dialog
-        open={openTamalForm}
-        onClose={handleCloseForms}
+        open={!!selectedProduct}
+        onClose={handleCloseModals}
         maxWidth="md"
         fullWidth
       >
-        <TamalForm
-          tamal={editingTamal}
-          onClose={handleCloseForms}
-          onSubmit={async (data) => {
-            const action = editingTamal ? 'update' : 'create';
-            const id = editingTamal?.id;
-            await tamalMutation.mutateAsync({ action, id, data });
-            handleCloseForms();
-          }}
-        />
+        {selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            onClose={handleCloseModals}
+          />
+        )}
       </Dialog>
 
       <Dialog
-        open={openBebidaForm}
-        onClose={handleCloseForms}
-        maxWidth="md"
+        open={!!showPriceCalculator}
+        onClose={handleCloseModals}
+        maxWidth="sm"
         fullWidth
       >
-        <BebidaForm
-          bebida={editingBebida}
-          onClose={handleCloseForms}
-          onSubmit={async (data) => {
-            const action = editingBebida ? 'update' : 'create';
-            const id = editingBebida?.id;
-            await bebidaMutation.mutateAsync({ action, id, data });
-            handleCloseForms();
-          }}
-        />
+        {showPriceCalculator && (
+          <PriceCalculatorModal
+            product={showPriceCalculator}
+            onClose={handleCloseModals}
+            onCalculate={(config) => calcularPrecioMutation.mutateAsync(config)}
+          />
+        )}
       </Dialog>
     </Box>
   );
