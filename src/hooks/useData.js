@@ -152,6 +152,29 @@ export const useVentas = (params = {}) => {
   });
 };
 
+export const useVentasPorSucursal = (sucursalId, params = {}) => {
+  return useQuery({
+    queryKey: ['ventas', 'sucursal', sucursalId, params],
+    queryFn: () => ventasService.getBySucursal(sucursalId, params).then(res => res.data),
+    enabled: !!sucursalId,
+    onError: (error) => {
+      console.error('Error al cargar ventas por sucursal:', handleApiError(error));
+    },
+  });
+};
+
+export const useVenta = (id) => {
+  return useQuery({
+    queryKey: ['ventas', id],
+    queryFn: () => ventasService.getById(id).then(res => res.data),
+    enabled: !!id,
+    onError: (error) => {
+      console.error('Error al cargar venta:', handleApiError(error));
+    },
+  });
+};
+
+
 export const useVentaMutation = () => {
   const queryClient = useQueryClient();
   

@@ -97,11 +97,32 @@ export const combosService = {
   updateEstacional: (id, data) => apiClient.put(`/combos/estacionales/${id}`, data),
 };
 
+
 export const ventasService = {
-  getAll: (params) => apiClient.get('/ventas', { params }),
+  // Obtener ventas por sucursal con paginación
+  getBySucursal: (sucursalId, params = {}) => {
+    const queryParams = new URLSearchParams({
+      pagina: params.pagina || 1,
+      tamanoPagina: params.tamanoPagina || 20,
+      ...params
+    });
+    return apiClient.get(`/ventas/sucursal/${sucursalId}?${queryParams}`);
+  },
+
+  // Crear nueva venta
   create: (data) => apiClient.post('/ventas', data),
+
+  // Obtener venta específica por ID
   getById: (id) => apiClient.get(`/ventas/${id}`),
-  // Reportes de ventas
+
+  // Métodos adicionales que podrían existir (mantener para compatibilidad)
+  getAll: (params) => {
+    // Si no hay sucursal específica, usar sucursal por defecto (1)
+    const sucursalId = params.sucursalId || 1;
+    return this.getBySucursal(sucursalId, params);
+  },
+
+  // Reportes de ventas (mantener si existen estos endpoints)
   getReporteDiario: (fecha) => apiClient.get(`/ventas/reporte/diario?fecha=${fecha}`),
   getReporteMensual: (año, mes) => apiClient.get(`/ventas/reporte/mensual?año=${año}&mes=${mes}`),
   getTopProducts: (params) => apiClient.get('/ventas/top-productos', { params }),

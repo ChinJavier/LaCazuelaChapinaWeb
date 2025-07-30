@@ -16,14 +16,23 @@ import {
   Chip,
   IconButton,
   Dialog,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Pagination,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Visibility as ViewIcon,
   Receipt as ReceiptIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { useVentas, useVentaMutation } from '../../hooks/useData';
+import { useVentasPorSucursal, useVenta, useVentaMutation, useSucursales } from '../../hooks/useData';
 import VentaForm from '../../components/forms/VentaForm';
+import VentaDetalleModal from '../../components/modals/VentaDetalleModal';
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('es-GT', {
@@ -42,24 +51,64 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-const getStatusColor = (status) => {
-  switch (status?.toLowerCase()) {
-    case 'completada':
-      return 'success';
-    case 'pendiente':
-      return 'warning';
-    case 'cancelada':
-      return 'error';
-    default:
-      return 'default';
+// Mapear los valores numéricos a texto legible
+const getTipoPagoText = (tipoPago) => {
+  switch (tipoPago) {
+    case 0: return 'Efectivo';
+    case 1: return 'Tarjeta';
+    case 2: return 'Transferencia';
+    default: return 'Desconocido';
+  }
+};
+
+const getTipoPagoColor = (tipoPago) => {
+  switch (tipoPago) {
+    case 0: return 'success'; // Efectivo
+    case 1: return 'info';    // Tarjeta
+    case 2: return 'warning'; // Transferencia
+    default: return 'default';
+  }
+};
+
+const getEstadoVentaText = (estadoVenta) => {
+  switch (estadoVenta) {
+    case 0: return 'Pendiente';
+    case 1: return 'Completada';
+    case 2: return 'Cancelada';
+    default: return 'Desconocido';
+  }
+};
+
+const getEstadoVentaColor = (estadoVenta) => {
+  switch (estadoVenta) {
+    case 0: return 'warning';  // Pendiente
+    case 1: return 'success';  // Completada
+    case 2: return 'error';    // Cancelada
+    default: return 'default';
   }
 };
 
 export default function Ventas() {
+  const [sucursalSeleccionada, setSucursalSeleccionada] = useState(1); // Sucursal por defecto
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [tamañoPagina] = useState(20);
   const [openVentaForm, setOpenVentaForm] = useState(false);
-  const [selectedVenta, setSelectedVenta] = useState(null);
+  const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
+  const [openDetalleModal, setOpenDetalleModal] = useState(false);
 
-  const { data: ventas, isLoading, error } = useVentas();
+  // Hooks para datos
+  const { data: sucursales } = useSucursales();
+  const { 
+    data: ventasData, 
+    isLoading, 
+    error,
+    refetch 
+  } = useVentasPorSucursal(sucursalSeleccionada, {
+    pagina: paginaActual,
+    tamanoPagina: tamañoPagina,
+  });
+
+  const { data: ventaDetalle } = useVenta(ventaSeleccionada?.id);
   const ventaMutation = useVentaMutation();
 
   const handleCreateVenta = () => {
@@ -67,11 +116,17 @@ export default function Ventas() {
   };
 
   const handleViewVenta = (venta) => {
-    setSelectedVenta(venta);
+    setVentaSeleccionada(venta);
+    setOpenDetalleModal(true);
   };
 
   const handleCloseForm = () => {
     setOpenVentaForm(false);
+  };
+
+  const handleCloseDetalle = () => {
+    setOpenDetalleModal(false);
+    setVentaSeleccionada(null);
   };
 
   const handleSubmitVenta = async (data) => {
@@ -83,12 +138,46 @@ export default function Ventas() {
     }
   };
 
+  const handleSucursalChange = (event) => {
+    setSucursalSeleccionada(event.target.value);
+    setPaginaActual(1); // Reset a la primera página
+  };
+
+  const handlePaginaChange = (event, nuevaPagina) => {
+    setPaginaActual(nuevaPagina);
+  };
+
+  // Calcular métricas rápidas basadas en las ventas actuales
+  const calcularMetricas = () => {
+    if (!ventasData?.ventas) return { ventasHoy: 0, ordenesHoy: 0, promedioOrden: 0 };
+    
+    const hoy = new Date().toDateString();
+    const ventasHoy = ventasData.ventas.filter(venta => 
+      new Date(venta.fechaVenta).toDateString() === hoy && venta.estadoVenta === 1
+    );
+    
+    const totalVentasHoy = ventasHoy.reduce((sum, venta) => sum + venta.total, 0);
+    const ordenesHoy = ventasHoy.length;
+    const promedioOrden = ordenesHoy > 0 ? totalVentasHoy / ordenesHoy : 0;
+
+    return {
+      ventasHoy: totalVentasHoy,
+      ordenesHoy,
+      promedioOrden,
+    };
+  };
+
+  const metricas = calcularMetricas();
+
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Typography color="error">
+        <Alert severity="error" sx={{ mb: 3 }}>
           Error al cargar las ventas. Por favor, inténtalo de nuevo.
-        </Typography>
+          <Button onClick={() => refetch()} sx={{ ml: 2 }}>
+            Reintentar
+          </Button>
+        </Alert>
       </Box>
     );
   }
@@ -102,18 +191,41 @@ export default function Ventas() {
             Gestión de Ventas
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Registro y seguimiento de ventas diarias
+            Registro y seguimiento de ventas por sucursal
           </Typography>
         </Box>
         
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleCreateVenta}
-          sx={{ borderRadius: 2 }}
-        >
-          Nueva Venta
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Sucursal</InputLabel>
+            <Select
+              value={sucursalSeleccionada}
+              onChange={handleSucursalChange}
+              label="Sucursal"
+            >
+              {sucursales?.map((sucursal) => (
+                <MenuItem key={sucursal.id} value={sucursal.id}>
+                  {sucursal.nombre}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <Tooltip title="Actualizar datos">
+            <IconButton onClick={() => refetch()}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleCreateVenta}
+            sx={{ borderRadius: 2 }}
+          >
+            Nueva Venta
+          </Button>
+        </Box>
       </Box>
 
       {/* Métricas rápidas */}
@@ -125,7 +237,7 @@ export default function Ventas() {
                 Ventas Hoy
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                {formatCurrency(ventas?.ventasHoy || 0)}
+                {formatCurrency(metricas.ventasHoy)}
               </Typography>
             </CardContent>
           </Card>
@@ -138,7 +250,7 @@ export default function Ventas() {
                 Órdenes Hoy
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                {ventas?.ordenesHoy || 0}
+                {metricas.ordenesHoy}
               </Typography>
             </CardContent>
           </Card>
@@ -151,7 +263,7 @@ export default function Ventas() {
                 Promedio por Orden
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                {formatCurrency(ventas?.promedioOrden || 0)}
+                {formatCurrency(metricas.promedioOrden)}
               </Typography>
             </CardContent>
           </Card>
@@ -161,10 +273,10 @@ export default function Ventas() {
           <Card>
             <CardContent>
               <Typography variant="h6" color="warning.main">
-                Top Producto
+                Total Ventas
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                {ventas?.topProducto || 'N/A'}
+              <Typography variant="h4" sx={{ fontWeight: 600 }}>
+                {ventasData?.totalVentas || 0}
               </Typography>
             </CardContent>
           </Card>
@@ -174,19 +286,25 @@ export default function Ventas() {
       {/* Tabla de ventas */}
       <Card>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Historial de Ventas
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Historial de Ventas
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Página {ventasData?.paginaActual || 1} de {ventasData?.totalPaginas || 1}
+            </Typography>
+          </Box>
           
           <TableContainer component={Paper} variant="outlined">
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>ID</TableCell>
+                  <TableCell>No. Venta</TableCell>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Cliente</TableCell>
-                  <TableCell>Productos</TableCell>
+                  <TableCell>Items</TableCell>
                   <TableCell>Total</TableCell>
+                  <TableCell>Pago</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Acciones</TableCell>
                 </TableRow>
@@ -194,52 +312,71 @@ export default function Ventas() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       Cargando ventas...
                     </TableCell>
                   </TableRow>
-                ) : ventas?.data?.length > 0 ? (
-                  ventas.data.map((venta) => (
+                ) : ventasData?.ventas?.length > 0 ? (
+                  ventasData.ventas.map((venta) => (
                     <TableRow key={venta.id} hover>
-                      <TableCell>#{venta.id}</TableCell>
-                      <TableCell>{formatDate(venta.fecha)}</TableCell>
-                      <TableCell>{venta.cliente || 'Cliente General'}</TableCell>
                       <TableCell>
-                        {venta.productos?.length || 0} productos
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {venta.numeroVenta}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{formatDate(venta.fechaVenta)}</TableCell>
+                      <TableCell>{venta.clienteNombre || 'Cliente General'}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={`${venta.cantidadItems} items`} 
+                          size="small" 
+                          variant="outlined" 
+                        />
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>
                         {formatCurrency(venta.total)}
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={venta.estado}
-                          color={getStatusColor(venta.estado)}
+                          label={getTipoPagoText(venta.tipoPago)}
+                          color={getTipoPagoColor(venta.tipoPago)}
                           size="small"
                         />
                       </TableCell>
                       <TableCell>
-                        <IconButton
+                        <Chip
+                          label={getEstadoVentaText(venta.estadoVenta)}
+                          color={getEstadoVentaColor(venta.estadoVenta)}
                           size="small"
-                          onClick={() => handleViewVenta(venta)}
-                          color="primary"
-                        >
-                          <ViewIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="secondary"
-                        >
-                          <ReceiptIcon />
-                        </IconButton>
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="Ver detalles">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewVenta(venta)}
+                            color="primary"
+                          >
+                            <ViewIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Imprimir recibo">
+                          <IconButton
+                            size="small"
+                            color="secondary"
+                          >
+                            <ReceiptIcon />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Box sx={{ py: 4 }}>
                         <Typography color="text.secondary">
-                          No hay ventas registradas
+                          No hay ventas registradas para esta sucursal
                         </Typography>
                       </Box>
                     </TableCell>
@@ -248,6 +385,20 @@ export default function Ventas() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Paginación */}
+          {ventasData?.totalPaginas > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Pagination
+                count={ventasData.totalPaginas}
+                page={paginaActual}
+                onChange={handlePaginaChange}
+                color="primary"
+                showFirstButton
+                showLastButton
+              />
+            </Box>
+          )}
         </CardContent>
       </Card>
 
@@ -261,6 +412,21 @@ export default function Ventas() {
         <VentaForm
           onClose={handleCloseForm}
           onSubmit={handleSubmitVenta}
+          sucursalId={sucursalSeleccionada}
+        />
+      </Dialog>
+
+      {/* Modal de detalle de venta */}
+      <Dialog
+        open={openDetalleModal}
+        onClose={handleCloseDetalle}
+        maxWidth="md"
+        fullWidth
+      >
+        <VentaDetalleModal
+          venta={ventaSeleccionada}
+          ventaDetalle={ventaDetalle}
+          onClose={handleCloseDetalle}
         />
       </Dialog>
     </Box>
