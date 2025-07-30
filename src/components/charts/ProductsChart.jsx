@@ -59,7 +59,7 @@ export default function ProductsChart({ data, height = 300 }) {
   const dataWithTotal = data.map(item => ({ ...item, total }));
 
   return (
-    <Box sx={{ height }}>
+    <Box sx={{ height, minWidth: 300 }}>
       <Box sx={{ height: height * 0.7 }}>
         <ResponsiveContainer>
           <PieChart>

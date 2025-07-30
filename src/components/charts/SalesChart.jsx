@@ -54,7 +54,7 @@ export default function SalesChart({ data, height = 300 }) {
   };
 
   return (
-    <Box sx={{ width: '100%', height }}>
+    <Box sx={{ minWidth: 300, height }}>
       <ResponsiveContainer>
         <BarChart
           data={data}

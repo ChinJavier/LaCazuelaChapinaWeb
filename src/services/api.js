@@ -146,10 +146,11 @@ export const inventarioService = {
 };
 
 export const dashboardService = {
-  getIndicadores: () => apiClient.get('/dashboard/indicadores'),
-  getVentasPorHora: (fecha) => apiClient.get(`/dashboard/ventas-por-hora?fecha=${fecha}`),
-  getProductosPopulares: (params) => apiClient.get('/dashboard/productos-populares', { params }),
-  getUtilidadesPorLinea: () => apiClient.get('/dashboard/utilidades-por-linea'),
+  getDashbardData: (sucursalId) => apiClient.get(`/Dashboard/sucursal/${sucursalId}`), 
+  getIndicadores: () => apiClient.get('/Dashboard/indicadores'),
+  getVentasPorHora: (fecha) => apiClient.get(`/Dashboard/ventas-por-hora?fecha=${fecha}`),
+  getProductosPopulares: (params) => apiClient.get('/Dashboard/productos-populares', { params }),
+  getUtilidadesPorLinea: () => apiClient.get('/Dashboard/utilidades-por-linea'),
 };
 
 export const sucursalesService = {

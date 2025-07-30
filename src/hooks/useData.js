@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   productosService,
-  combosService, 
-  ventasService, 
+  combosService,
+  ventasService,
   inventarioService,
   dashboardService,
   sucursalesService,
-  llmService 
+  llmService
 } from '../services/api';
 import { handleApiError } from '../services/api';
 
@@ -79,7 +79,7 @@ export const useCalcularPrecio = () => {
 // Hooks de backward compatibility (si necesitas mantener la misma interfaz)
 export const useTamalMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ action, id, data }) => {
       // Como no hay endpoints de CRUD individual, esto sería para administración
@@ -97,7 +97,7 @@ export const useTamalMutation = () => {
 
 export const useBebidaMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ action, id, data }) => {
       // Como no hay endpoints de CRUD individual, esto sería para administración
@@ -122,7 +122,7 @@ export const useCombos = () => {
 
 export const useComboMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ action, id, data }) => {
       switch (action) {
@@ -177,7 +177,7 @@ export const useVenta = (id) => {
 
 export const useVentaMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (data) => ventasService.create(data),
     onSuccess: () => {
@@ -228,7 +228,7 @@ export const useInventario = () => {
 
 export const useInventarioMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ action, id, data }) => {
       switch (action) {
@@ -252,34 +252,19 @@ export const useInventarioMutation = () => {
   });
 };
 
+
 // Hook para dashboard
-export const useDashboard = () => {
+export const useDashboard = (sucursalId) => {
+
   const indicadores = useQuery({
     queryKey: ['dashboard', 'indicadores'],
-    queryFn: () => dashboardService.getIndicadores().then(res => res.data),
+    queryFn: () => dashboardService.getDashbardData(sucursalId).then(res => res.data),
+    enabled: !!sucursalId,
     refetchInterval: 5 * 60 * 1000, // Actualizar cada 5 minutos
-  });
-
-  const ventasPorHora = useQuery({
-    queryKey: ['dashboard', 'ventasPorHora', new Date().toISOString().split('T')[0]],
-    queryFn: () => dashboardService.getVentasPorHora(new Date().toISOString().split('T')[0]).then(res => res.data),
-  });
-
-  const productosPopulares = useQuery({
-    queryKey: ['dashboard', 'productosPopulares'],
-    queryFn: () => dashboardService.getProductosPopulares().then(res => res.data),
-  });
-
-  const utilidades = useQuery({
-    queryKey: ['dashboard', 'utilidades'],
-    queryFn: () => dashboardService.getUtilidadesPorLinea().then(res => res.data),
   });
 
   return {
     indicadores,
-    ventasPorHora,
-    productosPopulares,
-    utilidades,
   };
 };
 
@@ -293,7 +278,7 @@ export const useSucursales = () => {
 
 export const useSucursalMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ action, id, data }) => {
       switch (action) {
@@ -357,7 +342,7 @@ export const useErrorHandler = () => {
   const handleError = (error, context = '') => {
     const errorInfo = handleApiError(error);
     console.error(`Error en ${context}:`, errorInfo);
-    
+
     // Aquí podrías mostrar notificaciones de error al usuario
     return errorInfo;
   };

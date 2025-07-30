@@ -111,7 +111,7 @@ export default function MetricCard({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
               icon={getTrendIcon(trend)}
-              label={`${trend > 0 ? '+' : ''}${trend}%`}
+              label={`${trend > 0 ? '+' : ''}${trend}`}
               size="small"
               color={getTrendColor(trend)}
               variant="outlined"
@@ -124,7 +124,7 @@ export default function MetricCard({
               }}
             />
             <Typography variant="caption" color="text.secondary">
-              vs. período anterior
+              Comportamiento
             </Typography>
           </Box>
         )}
