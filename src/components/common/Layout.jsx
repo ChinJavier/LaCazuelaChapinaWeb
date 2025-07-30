@@ -131,7 +131,7 @@ export default function Layout() {
           🍲
         </Avatar>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'white' }}>
             La Cazuela
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.8 }}>
@@ -202,7 +202,7 @@ export default function Layout() {
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h4" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600, color: 'primary.contrastText' }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'Dashboard'}
           </Typography>
 

@@ -20,6 +20,7 @@ import {
   Event as EventIcon,
   Groups as GroupsIcon,
   Star as StarIcon,
+  ShoppingCart as CartIcon,
 } from '@mui/icons-material';
 import { useCombos, useComboMutation } from '../../hooks/useData';
 
@@ -132,6 +133,14 @@ export default function Combos() {
       </CardContent>
 
       <Box sx={{ p: 2, pt: 0, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Button
+  variant="contained"
+  startIcon={<CartIcon />}
+  onClick={() => handleAddComboToCart(combo)}
+>
+  Agregar al Carrito
+</Button>
+
         <IconButton
           size="small"
           color="primary"
@@ -177,7 +186,7 @@ export default function Combos() {
       </Box>
 
       {/* Tabs */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, padding:  5 }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange}>
             <Tab 

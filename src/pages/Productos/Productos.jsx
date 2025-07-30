@@ -284,7 +284,7 @@ export default function Productos() {
       </Card>
 
       {/* Tabs */}
-      <Card>
+      <Card sx={{padding: 5}}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs 
             value={tabValue} 
@@ -305,7 +305,7 @@ export default function Productos() {
         </Box>
 
         {/* Panel de Tamales */}
-        <TabPanel value={tabValue} index={0}>
+        <TabPanel value={tabValue} index={0} >
           {loadingProductos ? (
             <Grid container spacing={3}>
               {[1, 2, 3, 4].map((item) => (
