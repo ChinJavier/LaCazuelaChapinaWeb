@@ -18,6 +18,8 @@ import {
   MenuItem,
   Badge,
   Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -32,7 +34,11 @@ import {
   Notifications as NotificationsIcon,
   AccountCircle,
   Logout,
+  ShoppingCart as CartIcon,
 } from '@mui/icons-material';
+import { useCart } from '../../context/CartContext';
+import { useVentaMutation } from '../../hooks/useData';
+import CartDrawer from './CartDrawer';
 
 const drawerWidth = 280;
 
@@ -50,8 +56,14 @@ const menuItems = [
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
   const navigate = useNavigate();
   const location = useLocation();
+  
+  const { itemCount, clearCart, getCartForAPI } = useCart();
+  const ventaMutation = useVentaMutation();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -68,6 +80,32 @@ export default function Layout() {
   const handleNavigation = (path) => {
     navigate(path);
     setMobileOpen(false);
+  };
+
+  const handleCartOpen = () => {
+    setCartOpen(true);
+  };
+
+  const handleCartClose = () => {
+    setCartOpen(false);
+  };
+
+  const handleProceedToCheckout = async (clienteInfo) => {
+    try {
+      const ventaData = getCartForAPI(clienteInfo, 1);
+      
+      console.log('Enviando venta:', ventaData);
+      
+      await ventaMutation.mutateAsync(ventaData);
+      clearCart();
+      setCartOpen(false);
+      setSuccessMessage('¡Venta procesada exitosamente!');
+      navigate('/ventas');
+      
+    } catch (error) {
+      console.error('Error al procesar venta:', error);
+      throw error;
+    }
   };
 
   const drawer = (
@@ -169,6 +207,14 @@ export default function Layout() {
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Carrito de compras">
+              <IconButton color="inherit" onClick={handleCartOpen}>
+                <Badge badgeContent={itemCount} color="secondary">
+                  <CartIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            
             <Tooltip title="Notificaciones">
               <IconButton color="inherit">
                 <Badge badgeContent={3} color="error">
@@ -258,6 +304,27 @@ export default function Layout() {
       >
         <Outlet />
       </Box>
+
+      <CartDrawer
+        open={cartOpen}
+        onClose={handleCartClose}
+        onProceedToCheckout={handleProceedToCheckout}
+      />
+
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={6000}
+        onClose={() => setSuccessMessage('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSuccessMessage('')} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

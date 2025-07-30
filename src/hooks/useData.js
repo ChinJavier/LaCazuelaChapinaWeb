@@ -162,6 +162,9 @@ export const useVentaMutation = () => {
       queryClient.invalidateQueries(['dashboard']);
       queryClient.invalidateQueries(['inventario']);
     },
+    onError: (error) => {
+      console.error('Error al crear venta:', handleApiError(error));
+    },
   });
 };
 
